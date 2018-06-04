@@ -26,7 +26,17 @@ openvswitch_sources = \
 	flow_table.c \
 	vport.c \
 	vport-internal_dev.c \
-	vport-netdev.c
+	vport-netdev.c \
+	countmax.c \
+	sketch_report.c \
+	Bitmap.c \
+	Counter.c \
+	FMsketch.c \
+	GeneralSketchBloom.c \
+	GeneralUtil.c \
+	GeneralVSketch.c \
+	HyperLogLog.c 
+	
 
 vport_geneve_sources = vport-geneve.c
 vport_vxlan_sources = vport-vxlan.c
@@ -43,7 +53,14 @@ openvswitch_headers = \
 	flow_table.h \
 	vport.h \
 	vport-internal_dev.h \
-	vport-netdev.h
+	vport-netdev.h \
+	Bitmap.h \
+	Counter.h \
+	FMsketch.h \
+	GeneralSketchBloom.h \
+	GeneralUtil.h \
+	GeneralVSketch.h \
+	HyperLogLog.h 
 
 dist_sources = $(foreach module,$(dist_modules),$($(module)_sources))
 dist_headers = $(foreach module,$(dist_modules),$($(module)_headers))
