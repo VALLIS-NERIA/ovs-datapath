@@ -60,27 +60,11 @@
 #include "gso.h"
 #include "vport-internal_dev.h"
 #include "vport-netdev.h"
-//#include "countmax.h"
-//#include "sketch_report.h"
-//static struct countmax_sketch* countmax;
-#include "GeneralSketchBloom.h"
-#include "GeneralVSketch.h"
-#include "newsketches.h"
-#define MY_SKETCH
+#include "countmax.h"
+#include "sketch_report.h"
+static struct countmax_sketch* countmax;
 
-#define MAGIC_SRC_ADDR 0xdeadbeef
-#define MAGIC_SRC_PORT 0xcdfa
-#define MAGIC_DST_ADDR 0x15175731
-#define MAGIC_DST_PORT 0x2857
 
-static GeneralSketchBloom *GSB;
-static GeneralVSketch *GVS;
-static struct sk_buff** stored_packets;
-static struct sw_flow_key* stored_keys;
-static int record_size = 1000;
-static int record_index = 0;
-
-static int w_m;
 
 
 /*-------------------------*/
@@ -287,6 +271,21 @@ void ovs_dp_detach_port(struct vport *p)
 // 	tuple->protocol = key->ip.proto;
 // }
 //static int recu = 1;
+
+void my_label_sketch(struct sk_buff* skb){
+	struct iphdr *ip_header = (struct iphdr *)skb_network_header(skb);
+	uint32_t tos = ip_header->tos;
+	if((tos & 3) != 0){
+		printk("%u\n", tos);
+		// countmax
+	}
+	else{
+		ip_header = ip_header | 1;
+		// countmin
+	}
+}
+
+
 static int collecting = 0;
 static uint32_t packet_count = 0;
 static uint32_t begin_jiffies = 0;
@@ -304,56 +303,6 @@ void ovs_dp_process_packet(struct sk_buff *skb, struct sw_flow_key *key)
 
 	stats = this_cpu_ptr(dp->stats_percpu);
 
-#ifdef MY_SKETCH
-	uint32_t srcIP = key->ipv4.addr.src;
-	//uint32_t dstIP = key->ipv4.addr.dst;
-	uint16_t srcport = key->tp.src;
-	uint16_t dstport = key->tp.dst;
-	uint32_t now = jiffies;	
-	if((srcIP==MAGIC_SRC_ADDR&&srcport==MAGIC_SRC_PORT&&dstport==MAGIC_DST_PORT)){
-		if(!collecting){
-			printk(KERN_EMERG"Magic packet received. Beginning collecting...\n");
-			collecting = 1;
-			begin_jiffies = now;
-			end_jiffies = now;
-		}
-	}
-	if (collecting){
-		packet_count++;
-		end_jiffies = now;
-	}
-	if (now - end_jiffies > HZ / 10) {
-		printk(KERN_EMERG"Idle for more than 0.1 second, stopped.\n");
-		printk(KERN_EMERG"Processed %u packets in %u / %u second(s)", packet_count, end_jiffies-begin_jiffies, HZ);
-		collecting = 0;
-		packet_count = 0;
-		begin_jiffies = 0;
-		end_jiffies = 0;
-	}
-	if (GSB_or_GVS == 0){
-		if(!GSB){
-			printk(KERN_EMERG"GSB is NULL!\n");
-			goto cont;
-		}
-		uint32_t j = srcIP % GSB->w;
-		if (size_or_spread == 0){
-			gsb_size_f[sketch_name](GSB->C[0][j]);
-		}
-		else {
-			gsb_spread_f[sketch_name](GSB->C[0][j], srcIP);
-		}
-	}
-	else {
-		if (size_or_spread == 0){
-			gvs_size_f[sketch_name](GVS->C[0], srcIP, GVS->S, w_m);
-		}
-		else {
-			gvs_spread_f[sketch_name](GVS->C[0], srcIP, srcIP, GVS->S, w_m);
-		}
-	}
-#endif
-
-cont:
 	/* Look up flow. */
 	flow = ovs_flow_tbl_lookup_stats(&dp->table, key, skb_get_hash(skb),
 					 &n_mask_hit);
@@ -375,10 +324,6 @@ cont:
 	}
 
 	//countmax_sketch_update(countmax, &empty_key,1);
-
-	//gsb_size_f[sketch_name](GSB->C[0][j]);
-    //printk("j is %d\n", j);        
-	//encodeCounter(GSB->C[0][j]);
 	ovs_flow_stats_update(flow, key->tp.flags, skb);
 	sf_acts = rcu_dereference(flow->sf_acts);
 	ovs_execute_actions(dp, skb, sf_acts, key);
@@ -393,37 +338,6 @@ out:
 	stats->n_mask_hit += n_mask_hit;
 	u64_stats_update_end(&stats->syncp);
 
-/*	if(record_index<record_size){
-		stored_packets[record_index] = skb_copy(skb,GFP_KERNEL);
-		//printk("port: %u",OVS_CB(skb)->input_vport->port_no);
-		//stored_keys[record_index] = *key;
-		record_index++;
-	}*/
-/*	//(srcIP==MAGIC_SRC_ADDR&&srcport==MAGIC_SRC_PORT&&dstport==MAGIC_DST_PORT) ||
-	if( (record_index == record_size)&&recu){
-		printk(KERN_EMERG"Starting pressure test! Total packet number: %d\n", record_index);
-		recu = 0;
-		uint32_t begin = jiffies;
-		int pt_index;
-		int error;
-		struct sw_flow_key new_key;
-		for(pt_index = 0; pt_index < record_index; pt_index++){
-			struct sk_buff* new_skb = stored_packets[pt_index];
-			//printk("port: %u",OVS_CB(new_skb)->input_vport->port_no);			
-			error = ovs_flow_key_extract(NULL, new_skb, &new_key);
-			if(error){
-				printk(KERN_EMERG"extract key failed\n");
-				kfree(new_skb);
-				continue;
-			}
-			ovs_dp_process_packet(new_skb, key);
-			kfree(new_skb);
-		}
-		uint32_t end = jiffies;
-		printk(KERN_EMERG"Test finished in %d/%d second(s).", end-begin, HZ);
-		recu = 1;
-		record_index = 0;
-	}*/
 }
 
 int ovs_dp_upcall(struct datapath *dp, struct sk_buff *skb,
@@ -2566,20 +2480,8 @@ static int __init dp_init(void)
 	err = dp_register_genl();
 	if (err < 0)
 		goto error_unreg_netdev;
-	//countmax=new_countmax_sketch(100,2);
-	//sketch_report_init(countmax,countmax_sketch_query);
-	//stored_packets = kzalloc(sizeof(struct sk_buff*)*record_size, GFP_KERNEL);
-	//stored_keys = kzalloc(sizeof(struct sw_flow_key)*record_size, GFP_KERNEL);
-#ifdef MY_SKETCH
-	print_sketch_mode();
-	if (GSB_or_GVS == 0){
-		GSB = initSketchBloom(sketch_name);
-	}
-	else {
-		GVS = initVSketch(sketch_name);
-		w_m = GVS->w / GVS->m;		
-	}
-#endif
+	countmax = new_countmax_sketch(100,2);
+
 	return 0;
 
 error_unreg_netdev:
