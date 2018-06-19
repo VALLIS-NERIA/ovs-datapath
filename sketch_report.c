@@ -9,7 +9,7 @@
 #include <linux/kthread.h>
 #include "flow_key.h"
 #define MAX_BATCH 1024
-typedef int64_t elemtype;
+//typedef int64_t elemtype;
 unsigned short listen_port = 0x8888;
 
 

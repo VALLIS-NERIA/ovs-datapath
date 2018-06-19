@@ -13,7 +13,9 @@
 #define log2(n) (uint32_t)__ilog2_u32(n)
 // end win32
 
-typedef int64_t elemtype;
+//typedef unsigned long long size_t;
+
+typedef long long elemtype;
 
 #define GOLDEN_RATIO_PRIME_32 0x9e370001UL
 

@@ -63,8 +63,8 @@
 #include "countmax.h"
 #include "sketch_report.h"
 static struct countmax_sketch* countmax;
-
-
+#include "asm-generic/int-ll64.h"
+#include "linux/types.h"
 
 
 /*-------------------------*/
@@ -272,7 +272,12 @@ void ovs_dp_detach_port(struct vport *p)
 // }
 //static int recu = 1;
 
-void my_label_sketch(struct sk_buff* skb){
+void my_label_sketch(char* dev_name, struct sk_buff* skb){
+	if(dev_name[0] != 's') return;
+	int dev_id = dev_name[1]-'0';
+	if(dev_id<0 || dev_id>9) return;
+
+	
 	struct iphdr *ip_header = (struct iphdr *)skb_network_header(skb);
 	uint32_t tos = ip_header->tos;
 	if((tos & 3) != 0){
@@ -280,7 +285,7 @@ void my_label_sketch(struct sk_buff* skb){
 		// countmax
 	}
 	else{
-		ip_header = ip_header | 1;
+		ip_header->tos = ip_header->tos | 1;
 		// countmin
 	}
 }
@@ -322,7 +327,7 @@ void ovs_dp_process_packet(struct sk_buff *skb, struct sw_flow_key *key)
 		stats_counter = &stats->n_missed;
 		goto out;
 	}
-
+	OVS_CB(skb)->input_vport->dev->name;
 	//countmax_sketch_update(countmax, &empty_key,1);
 	ovs_flow_stats_update(flow, key->tp.flags, skb);
 	sf_acts = rcu_dereference(flow->sf_acts);
