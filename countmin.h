@@ -1,7 +1,6 @@
 #ifndef COUNTMIN_H
 #define COUNTMIN_H
 #include "flow_key.h"
-typedef unsigned long long size_t;
 struct countmin_sketch {
     size_t w;
     size_t d;

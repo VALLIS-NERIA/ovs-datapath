@@ -62,9 +62,7 @@
 #include "vport-netdev.h"
 #include "countmax.h"
 #include "sketch_report.h"
-static struct countmax_sketch* countmax;
-#include "asm-generic/int-ll64.h"
-#include "linux/types.h"
+#include "sketch_manage.h"
 
 
 /*-------------------------*/
@@ -263,38 +261,11 @@ void ovs_dp_detach_port(struct vport *p)
 	ovs_vport_del(p);
 }
 
-// void extract_5_tuple(struct sw_flow_key* key, struct flow_key* tuple){
-// 	tuple->srcport = key->tp.src;
-// 	tuple->dstport = key->tp.dst;
-// 	tuple->srcip = key->ipv4.addr.src;
-// 	tuple->dstip = key->ipv4.addr.dst;
-// 	tuple->protocol = key->ip.proto;
-// }
-//static int recu = 1;
 
-void my_label_sketch(char* dev_name, struct sk_buff* skb){
-	if(dev_name[0] != 's') return;
-	int dev_id = dev_name[1]-'0';
-	if(dev_id<0 || dev_id>9) return;
-
-	
-	struct iphdr *ip_header = (struct iphdr *)skb_network_header(skb);
-	uint32_t tos = ip_header->tos;
-	if((tos & 3) != 0){
-		printk("%u\n", tos);
-		// countmax
-	}
-	else{
-		ip_header->tos = ip_header->tos | 1;
-		// countmin
-	}
-}
-
-
-static int collecting = 0;
-static uint32_t packet_count = 0;
-static uint32_t begin_jiffies = 0;
-static uint32_t end_jiffies = 0;
+// static int collecting = 0;
+// static uint32_t packet_count = 0;
+// static uint32_t begin_jiffies = 0;
+// static uint32_t end_jiffies = 0;
 /* Must be called with rcu_read_lock. */
 void ovs_dp_process_packet(struct sk_buff *skb, struct sw_flow_key *key)
 {
@@ -307,7 +278,7 @@ void ovs_dp_process_packet(struct sk_buff *skb, struct sw_flow_key *key)
 	u32 n_mask_hit;
 
 	stats = this_cpu_ptr(dp->stats_percpu);
-
+	my_label_sketch(p->dev->name, skb, key);
 	/* Look up flow. */
 	flow = ovs_flow_tbl_lookup_stats(&dp->table, key, skb_get_hash(skb),
 					 &n_mask_hit);
@@ -2485,10 +2456,14 @@ static int __init dp_init(void)
 	err = dp_register_genl();
 	if (err < 0)
 		goto error_unreg_netdev;
-	countmax = new_countmax_sketch(100,2);
+	err = init_filter_sketch(100,2,10);
+	if(err)
+		goto error_filter_sketch;
+	//countmax = new_countmax_sketch(100,2);
 
 	return 0;
-
+error_filter_sketch:
+	clean_filter_sketch();
 error_unreg_netdev:
 	ovs_netdev_exit();
 error_unreg_notifier:

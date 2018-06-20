@@ -11,14 +11,11 @@
 #define newarr(name, size) (name*)kzalloc(size * sizeof(name), GFP_KERNEL)
 #define kfree kfree
 #define log2(n) (uint32_t)__ilog2_u32(n)
-// end win32
-
-//typedef unsigned long long size_t;
-
-typedef long long elemtype;
-
 #define GOLDEN_RATIO_PRIME_32 0x9e370001UL
 
+typedef int ___dummy_int;
+
+typedef long long elemtype;
 static inline uint32_t sketch_hash_32(uint32_t val, unsigned int bits) {
     /* On some cpus multiply is faster, on others gcc will do shifts */
     uint32_t hash = val * GOLDEN_RATIO_PRIME_32;
