@@ -31,7 +31,7 @@ static int threshold;
 #define MAX_BATCH 1024
 static const unsigned short listen_port = 0x8888;
 static const char* magic_command = "lol233hhh";
-
+static const char* magic_finish = "finish";
 /*****sketch update*****/
 
 int init_filter_sketch(int w, int d, int filter_threshold) {
@@ -83,16 +83,16 @@ void my_label_sketch(char* dev_name, struct sk_buff* skb, struct sw_flow_key* ke
     struct iphdr* ip_header;
     uint32_t tos;
 
-    printk("on dev %s ", dev_name);
+    //printk("on dev %s ", dev_name);
     if (dev_name[0] != 's') return;
     dev_id = dev_name[1] - '0';
     if (dev_id < 0 || dev_id > 9 || dev_id > SW_COUNT) return;
-    printk("(dev_id=%d): ", dev_id);
+    //printk("(dev_id=%d): ", dev_id);
 
     extract_5_tuple(key, &tuple);
     ip_header = (struct iphdr*)skb_network_header(skb);
     tos = ip_header->tos;
-    printk("tos = %u\n", tos);
+    //printk("tos = %u\n", tos);
     if (switch_types[dev_id] == filter) {
         if ((tos & 3) == 0) {
             elemtype res = countmin_sketch_update(countmin[dev_id], &tuple, skb->len);
@@ -102,7 +102,9 @@ void my_label_sketch(char* dev_name, struct sk_buff* skb, struct sw_flow_key* ke
             ip_send_check(ip_header);
         }
     } else if (switch_types[dev_id] == egress) {
-        countmax_sketch_update(countmax[dev_id], &tuple, skb->len);
+        //printk("update!\n");
+        countmax_sketch_update(countmax[dev_id], &tuple, 10);
+        //countmax_sketch_query(countmax[dev_id], &tuple);
         if ((tos & 3) != 0) {
             //countmax_sketch_update(countmax[dev_id], &tuple, skb->len);
         }
@@ -114,7 +116,9 @@ struct countmax_entry {
     struct flow_key key;
     elemtype value;
 };
-
+void print_ip(uint32_t ip) {
+    printk("%d.%d.%d.%d", (ip) % 0x100, (ip / 0x100) % 0x100, (ip / 0x10000) % 0x100, ip / 0x1000000);
+}
 static int get_stat_and_send_back(struct socket* client_sock) {
     int i, j, k;
     int count;
@@ -124,40 +128,51 @@ static int get_stat_and_send_back(struct socket* client_sock) {
     struct kvec vec;
     struct msghdr msg;
 
+    struct flow_key key;
+    elemtype value;
     count = 0;
     for (i = 0; i < SW_COUNT; ++i) {
-        if (switch_types[i] == filter) {
+        if (switch_types[i] == egress) {
             count = max(countmax[i]->w * countmax[i]->d, count);
         }
     }
     sendbuf = kzalloc(count * sizeof(struct countmax_entry), GFP_KERNEL);
     printk("querying...\n");
-    buf_p = 0;
     for (i = 0; i < SW_COUNT; ++i) {
-        if (switch_types[i] == filter) {
-            for (j = 0; j < countmax[i]->d; ++j) {
-                for (k = 0; k < count; ++k) {
-                    sendbuf[buf_p].key = countmax[i]->lines[j]->keys[k];
-                    sendbuf[buf_p].value = countmax[i]->lines[j]->counters[k];
-                    ++buf_p;
-                }
+        if (switch_types[i] != egress) continue;
+
+        buf_p = 0;
+        printk("countmax #%d: w = %u, d = %u\n", i, countmax[i]->w, countmax[i]->d);
+        for (j = 0; j < countmax[i]->d; ++j) {
+            for (k = 0; k < countmax[i]->w; ++k) {
+                key = countmax[i]->lines[j]->keys[k];
+                value = countmax[i]->lines[j]->counters[k];
+                if (value == 0) continue;
+                sendbuf[buf_p].key = key;
+                sendbuf[buf_p].value = value;
+                print_ip(key.srcip);
+                printk("->");
+                print_ip(key.dstip);
+                printk(": %llu\n", value);
+                ++buf_p;
             }
         }
-        // pad
-        for (; buf_p < count; ++buf_p) {
-            sendbuf[buf_p].key = empty_key;
-            sendbuf[buf_p].value = 0;
-        }
+        printk("\nswitch #%d: %d get.\n", i, buf_p);
 
         // send back
-        printk("query finished, sending... #%d\n", i);
+        //printk("query finished, sending... #%d\n", i);
         memset(&vec, 0, sizeof(vec));
         memset(&msg, 0, sizeof(msg));
         vec.iov_base = sendbuf;
-        vec.iov_len = count * sizeof(elemtype);
+        vec.iov_len = buf_p * sizeof(struct countmax_entry);
 
-        kernel_sendmsg(client_sock, &msg, &vec, 1, count * sizeof(elemtype));
+        kernel_sendmsg(client_sock, &msg, &vec, 1, buf_p * sizeof(struct countmax_entry));
     }
+
+    vec.iov_base = magic_finish;
+    vec.iov_len = strlen(magic_finish) + 1;
+
+    kernel_sendmsg(client_sock, &msg, &vec, 1, strlen(magic_finish) + 1);
 
     kfree(sendbuf);
     return 0;
@@ -168,6 +183,11 @@ static int sketch_report_listen(void* arg) {
     struct socket *sock, *client_sock;
     struct sockaddr_in s_addr;
     int ret = 0;
+
+    char* recvbuf;
+
+    struct kvec vec;
+    struct msghdr msg;
 
     memset(&s_addr, 0, sizeof(s_addr));
     s_addr.sin_family = AF_INET;
@@ -200,7 +220,6 @@ static int sketch_report_listen(void* arg) {
     }
     printk("server:listen ok!\n");
     /*kmalloc a receive buffer*/
-    char* recvbuf = NULL;
     recvbuf = kzalloc(buf_size, GFP_KERNEL);
     if (recvbuf == NULL) {
         printk("server: recvbuf kmalloc error!\n");
@@ -224,8 +243,7 @@ static int sketch_report_listen(void* arg) {
         printk("server: accept ok, Connection Established\n");
 
         /*receive message from client*/
-        struct kvec vec;
-        struct msghdr msg;
+
         memset(&vec, 0, sizeof(vec));
         memset(&msg, 0, sizeof(msg));
         vec.iov_base = recvbuf;
@@ -238,6 +256,7 @@ static int sketch_report_listen(void* arg) {
         /*release socket*/
         sock_release(client_sock);
     }
+    printk("listen thread exiting.\n");
     sock_release(sock);
     kfree(recvbuf);
     return ret;

@@ -2455,12 +2455,17 @@ static int __init dp_init(void)
 	err = dp_register_genl();
 	if (err < 0)
 		goto error_unreg_netdev;
-	err = init_filter_sketch(100,2,10);
+	err = init_filter_sketch(10,2,10);
 	if(err)
 		goto error_filter_sketch;
+	err = sketch_report_init();
+	if(err)
+		goto error_sketch_report;
 	//countmax = new_countmax_sketch(100,2);
 
 	return 0;
+error_sketch_report:
+	sketch_report_clean();
 error_filter_sketch:
 	clean_filter_sketch();
 error_unreg_netdev:
@@ -2485,6 +2490,10 @@ error:
 
 static void dp_cleanup(void)
 {
+
+	sketch_report_clean();
+	clean_filter_sketch();
+
 	//sketch_report_clean();
 	//delete_countmax_sketch(countmax);
 	dp_unregister_genl(ARRAY_SIZE(dp_genl_families));
