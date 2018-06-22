@@ -28,7 +28,6 @@ openvswitch_sources = \
 	vport-internal_dev.c \
 	vport-netdev.c \
 	countmax.c \
-	sketch_report.c \
 	countmin.c \
 	sketch_manage.c 
 	
@@ -50,7 +49,6 @@ openvswitch_headers = \
 	vport-internal_dev.h \
 	vport-netdev.h \
 	countmax.h \
-	sketch_report.h \
 	countmin.h \
 	sketch_manage.h
 

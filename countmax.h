@@ -2,6 +2,13 @@
 #define COUNTMAX_H
 #include "flow_key.h"
 
+struct countmax_line {
+    size_t w;
+    uint32_t mask;
+    struct flow_key* keys;
+    elemtype* counters;
+};
+
 struct countmax_sketch {
     size_t w;
     size_t d;

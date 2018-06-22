@@ -1,11 +1,6 @@
 #include "countmax.h"
 
-struct countmax_line {
-    size_t w;
-    uint32_t mask;
-    struct flow_key* keys;
-    elemtype* counters;
-};
+
 static struct countmax_line* new_countmax_line(int w);
 static void delete_countmax_line(struct countmax_line* this);
 static void countmax_line_update(struct countmax_line* this, struct flow_key* key, elemtype value);

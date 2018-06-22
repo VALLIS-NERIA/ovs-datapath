@@ -61,7 +61,6 @@
 #include "vport-internal_dev.h"
 #include "vport-netdev.h"
 #include "countmax.h"
-#include "sketch_report.h"
 #include "sketch_manage.h"
 
 

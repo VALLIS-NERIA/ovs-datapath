@@ -15,6 +15,10 @@
 
 typedef int ___dummy_int;
 
+#ifndef __KERNEL__
+typedef unsigned long long size_t;
+#endif
+
 typedef long long elemtype;
 static inline uint32_t sketch_hash_32(uint32_t val, unsigned int bits) {
     /* On some cpus multiply is faster, on others gcc will do shifts */
