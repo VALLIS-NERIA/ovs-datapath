@@ -21,7 +21,7 @@ enum switch_type {
     egress = 2
 };
 
-static enum switch_type switch_types[] = {egress, egress, egress, egress, egress, egress};
+static enum switch_type switch_types[] = {egress, filter, egress, egress, egress, egress};
 #define SW_COUNT (sizeof(switch_types) / sizeof(enum switch_type))
 static struct countmax_sketch* countmax[SW_COUNT];
 static struct countmin_sketch* countmin[SW_COUNT];
@@ -94,18 +94,19 @@ void my_label_sketch(char* dev_name, struct sk_buff* skb, struct sw_flow_key* ke
     tos = ip_header->tos;
     //printk("tos = %u\n", tos);
     if (switch_types[dev_id] == filter) {
-        if ((tos & 3) == 0) {
-            elemtype res = countmin_sketch_update(countmin[dev_id], &tuple, skb->len);
-            //if (res + skb->len > threshold)
-            ip_header->tos = ip_header->tos | 0x80;  // put tag
-            // REMEMBER TO CALCULATE THE CHECKSUM!!!!!
-            ip_send_check(ip_header);
+        if ((tos & 0x80) == 0) {
+            elemtype res = countmin_sketch_update(countmin[dev_id], &tuple, 1);
+            if (res < threshold) {
+                ip_header->tos = ip_header->tos | 0x80;  // put tag
+                // REMEMBER TO CALCULATE THE CHECKSUM!!!!!
+                ip_send_check(ip_header);
+            }
         }
     } else if (switch_types[dev_id] == egress) {
-        //printk("update!\n");
-        countmax_sketch_update(countmax[dev_id], &tuple, 10);
+        //printk("update!\n");        
         //countmax_sketch_query(countmax[dev_id], &tuple);
-        if ((tos & 3) != 0) {
+        if ((tos & 0x80) == 0) {
+            countmax_sketch_update(countmax[dev_id], &tuple, 1);
             //countmax_sketch_update(countmax[dev_id], &tuple, skb->len);
         }
     }

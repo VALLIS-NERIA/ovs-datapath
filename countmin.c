@@ -37,7 +37,7 @@ elemtype countmin_sketch_update(struct countmin_sketch* this, struct flow_key* k
         }
         this->data[long_index] += value;
     }
-    return ret;
+    return ret + value;
 }
 
 elemtype countmin_sketch_query(struct countmin_sketch* this, struct flow_key* key) {
