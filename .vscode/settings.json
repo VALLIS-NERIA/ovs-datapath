@@ -1,0 +1,29 @@
+{
+    "files.associations": {
+        "*.txt": "bat",
+        "newsketches.h": "c",
+        "type_traits": "cpp",
+        "sketch_report.h": "c",
+        "if_arp.h": "c",
+        "types.h": "c",
+        "int-ll64.h": "c",
+        "countmax.h": "c",
+        "flow_key.h": "c",
+        "util.h": "c",
+        "sketch_util.h": "c",
+        "hash.h": "c",
+        "delay.h": "c",
+        "ip.h": "c",
+        "in.h": "c",
+        "socket.h": "c",
+        "exception": "c",
+        "xtr1common": "c",
+        "tuple": "c",
+        "system_error": "c",
+        "vector": "c",
+        "xstring": "c",
+        "limits": "c",
+        "openvswitch.h": "c"
+    },
+    //"C_Cpp.errorSquiggles": "Disabled"
+}
