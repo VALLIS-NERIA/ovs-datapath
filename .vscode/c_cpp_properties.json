@@ -10,6 +10,10 @@
                 "limitSymbolsToIncludedHeaders": true
             },
             "includePath": [
+                "${workspaceFolder}/../",
+                "${workspaceFolder}/../datapath",
+                "${workspaceFolder}/../datapath/linux/compat/",
+                "${workspaceFolder}/../datapath/linux/compat/include/",
                 "D:\\Resources\\linux-headers-4.2.0-27-generic/arch/x86/include",
                 "D:\\Resources\\linux-headers-4.2.0-27-generic/arch/x86/include/uapi",
                 "D:\\Resources\\linux-headers-4.2.0-27-generic/arch/x86/include/generated",
@@ -21,11 +25,8 @@
                 "D:\\Resources\\linux-headers-4.2.0-27-generic/include/generated/uapi",
                 "D:\\Resources\\linux-headers-4.2.0-27-generic/ubuntu/include",
                 "D:/Resources/linux-headers-4.2.0-27-generic/include/uapi/linux",
-                "${fileDirname}",
-                "${workspaceFolder}/../",
-                "${workspaceFolder}/../datapath",
-                "${workspaceFolder}/../datapath/linux/compat/",
-                "${workspaceFolder}/../datapath/linux/compat/include/"
+                "${fileDirname}"
+
             ],
             "defines": [
                 "_DEBUG",
@@ -34,12 +35,18 @@
                 "__KERNEL__",
                 "__GNUC__=4",
                 "__GNUC_MINOR__=8",
-                "__GNUC_PATCHLEVEL__=2"
+                "__GNUC_PATCHLEVEL__=2",
+                "CONFIG_HZ=1000",
+                "KBUILD_MODNAME=\"openvswitch\"",
+                "VERSION=\"2.8.2\""
             ],
             "cStandard": "c89",
             "cppStandard": "c++17",
             "intelliSenseMode": "clang-x64",
-            "compilerPath": "\"C:\\cygwin64\\bin\\gcc.exe --std=gnu99\""
+            "compilerPath": "\"C:\\cygwin64\\bin\\gcc.exe --std=gnu99\"",
+            "forcedInclude": [
+                "linux/kcompat.h"
+            ]
         }
     ],
     "version": 4
