@@ -29,6 +29,8 @@ openvswitch_sources = \
 	vport-netdev.c \
 	countmax.c \
 	countmin.c \
+	countsketch.c \
+	fss.c \
 	sketch_manage.c 
 	
 
@@ -50,7 +52,11 @@ openvswitch_headers = \
 	vport-netdev.h \
 	countmax.h \
 	countmin.h \
-	sketch_manage.h
+	countsketch.h \
+	fss.h \
+	sketch_manage.h \
+	flow_key.h \
+	sketch_util.h \
 
 dist_sources = $(foreach module,$(dist_modules),$($(module)_sources))
 dist_headers = $(foreach module,$(dist_modules),$($(module)_headers))
